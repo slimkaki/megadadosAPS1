@@ -10,11 +10,12 @@ app = FastAPI()
 
 db = []
 
-@app.post("/tarefa/")
+@app.post("/tarefa")
 async def create_tarefa(new_tarefa: Tarefa):
     db.append(new_tarefa)
     return new_tarefa
 
-@app.get("/tarefas/")
+@app.get("/tarefas")
 async def get_tarefas():
     return db
+
