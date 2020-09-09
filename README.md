@@ -10,3 +10,9 @@ Prof. Fábio Ayres
 ___
 
 > Criar uma RESTful API utilizando FastAPI em python.
+
+> Rodar usando uvicorn:
+
+```bash
+user~$ uvicorn main:app
+```
