@@ -17,5 +17,23 @@ async def create_tarefa(new_tarefa: Tarefa):
 
 @app.get("/tarefas")
 async def get_tarefas():
+    '''
+    Retorna todas as tarefas
+    '''
     return db
 
+@app.get("/tarefas/notdone")
+async def isnotdone():
+    doneTasks = []
+    for task in db:
+        if task.isDone == False:
+            doneTasks.append(task)
+    return doneTasks
+
+@app.get("/tarefas/done")
+async def done():
+    undoneTasks = []
+    for task in db:
+        if task.isDone:
+            undoneTasks.append(task)
+    return undoneTasks
