@@ -14,5 +14,5 @@ ___
 > Rodar usando uvicorn:
 
 ```bash
-$ uvicorn main:app
+$ uvicorn main:app --reload
 ```
