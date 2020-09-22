@@ -46,25 +46,45 @@ class DBSession:
     def __init__(self):
         self.tasks = DBSession.tasks
 
-    def getTasks(self, completed= None):
-        if completed is None:
-            return self.tasks.copy()
+    def getTasks(self, completed=None):
+        if completed == False:
+            incompletedTasks = {}
+            for i in self.tasks:
+                if (i.completed == False):
+                    incompletedTasks[i] = {
+                                            "description": i.description,
+                                            "completed": i.completed
+                                          }
 
-    def postTask(self, uuid_, item):
+            return incompletedTasks
+        elif completed == True:
+            completedTasks = {}
+            for i in self.tasks:
+                if (i.completed == True):
+                    completedTasks[i] = {
+                                        "description": i.description,
+                                        "completed": i.completed
+                                        }
+            return completedTasks
+        else:
+            return self.tasks.copy()
+    
+    def getSingleTask(self, uuid_):
+        return self.tasks[uuid_]
+
+    def postTask(self, item):
         uuid_ = uuid.uuid4()
-        db.tasks[uuid_] = item
+        self.tasks[uuid_] = item
         return uuid_
 
-        return
-
     def putTask(self, uuid_, item):
-        return
-
+        self.tasks[uuid_] = item
+    
     def patchTask(self, uuid_, item):
-        return
+        self.tasks[uuid_] = item
 
     def deleteTask(self, uuid_):
-        return
+        del self.tasks[uuid_]
 
 def get_db():
     return DBSession()
@@ -78,12 +98,8 @@ def get_db():
     response_model=Dict[uuid.UUID, Task],
 )
 async def read_tasks(completed: bool = None, db: DBSession = Depends(get_db)):
-    if completed is None:
-        return db.tasks
-    return {
-        uuid_: item
-        for uuid_, item in db.tasks.items() if item.completed == completed
-    }
+    db.getTasks(completed)
+    
 
 
 @app.post(
@@ -94,9 +110,8 @@ async def read_tasks(completed: bool = None, db: DBSession = Depends(get_db)):
     response_model=uuid.UUID,
 )
 async def create_task(item: Task, db: DBSession = Depends(get_db)):
-    uuid_ = uuid.uuid4()
-    db.tasks[uuid_] = item
-    return uuid_
+    myUuid = db.postTask(item)
+    return myUuid
 
 
 @app.get(
@@ -107,13 +122,7 @@ async def create_task(item: Task, db: DBSession = Depends(get_db)):
     response_model=Task,
 )
 async def read_task(uuid_: uuid.UUID, db: DBSession = Depends(get_db)):
-    try:
-        return db.tasks[uuid_]
-    except KeyError as exception:
-        raise HTTPException(
-            status_code=404,
-            detail='Task not found',
-        ) from exception
+    return db.getSingleTask(uuid_)
 
 
 @app.put(
@@ -124,8 +133,7 @@ async def read_task(uuid_: uuid.UUID, db: DBSession = Depends(get_db)):
 )
 async def replace_task(uuid_: uuid.UUID, item: Task, db: DBSession = Depends(get_db)):
     try:
-        db.tasks[uuid_] = item
-        return uuid_
+        db.putTask(uuid_, item)
     except KeyError as exception:
         raise HTTPException(
             status_code=404,
@@ -141,8 +149,7 @@ async def replace_task(uuid_: uuid.UUID, item: Task, db: DBSession = Depends(get
 )
 async def alter_task(uuid_: uuid.UUID, item: Task, db: DBSession = Depends(get_db)):
     try:
-        update_data = item.dict(exclude_unset=True)
-        db.tasks[uuid_] = db.tasks[uuid_].copy(update=update_data)
+        db.patchTask(uuid_, item)
     except KeyError as exception:
         raise HTTPException(
             status_code=404,
@@ -158,7 +165,7 @@ async def alter_task(uuid_: uuid.UUID, item: Task, db: DBSession = Depends(get_d
 )
 async def remove_task(uuid_: uuid.UUID, db: DBSession = Depends(get_db)):
     try:
-        del db.tasks[uuid_]
+        db.deleteTask(uuid_)
     except KeyError as exception:
         raise HTTPException(
             status_code=404,
