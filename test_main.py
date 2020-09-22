@@ -21,8 +21,8 @@ def test_read_main_returns_not_found():
 #--------- POST ÚNICO ----------#
 def test_post_valid_task():
     """
-    Teste: Realizar o POST de uma tas e verificar se foi bem-sucedida. 
-           O UUID é guardado para os próximos testes.
+    Teste: Realizar o POST de uma task e verificar se foi bem-sucedida. 
+           O UUID é guardado na lista "uuids" para os próximos testes.
     Verbo: POST
     """
     data = json.dumps({
@@ -37,7 +37,7 @@ def test_post_valid_task():
 #--------- GET ÚNICO ----------#
 def test_get_single_task():
     """
-    Teste: retorna uma task só. É passado um UUID conhecido
+    Teste: Busca de uma task a partir de um UUID conhecido.
     Verbo: GET
     Esperado: Status Code = 200
     """
@@ -69,21 +69,33 @@ def test_post_tasks_200():
 
 #------ TEST VALID DELETE -------#
 def test_delete_task():
+    """
+    Teste: Deletar uma task de UUID conhecido.
+    Verbo: DELETE
+    Esperado: Status Code = 200
+    """
     response = client.delete('/task/' + uuids[0])
     assert response.status_code == 200
     get_all_tasks = client.get('/task')
     assert len(get_all_tasks.json()) == len(uuids)-1
+    uuids.remove(uuids[0])
 
 #------ TEST DELETE UNKNOWN TASK-------#
 def test_delete_invalid_task():
+    """
+    Teste: Deletar uma task com um UUID aleatório.
+    Verbo: DELETE
+    Esperado: Status Code = 404
+    """
     response = client.delete('/task/' + str(uuid.uuid4()))
     assert response.status_code == 404
 
 # ----- POST OBJETO INCOMPLETO ---------#
 def test_post_task_no_info():
     """
-    Teste: POST com payload sem infos funciona pois cria com default
+    Teste: POST com payload vazio. funciona pois cria com default
     Verbo: POST 
+    Esperado: Deveria funcionar, pois cria com "description" e "completed" default.
     """
     data = json.dumps({})
     response = client.post('/task', data)
@@ -96,8 +108,9 @@ def test_post_task_no_info():
 #------- POST INFOS DESNECESSÁRIAS PARA A REQ ----#
 def test_post_task_additional_info():
     """
-    Teste: POST com payload com infos além funciona pois não trata infos a mais
-    Verbo: POST 
+    Teste: POST com payload com chaves aleatórias para o json.
+    Verbo: POST
+    Esperado: Deveria funcionar, pois cria com "description" e "completed" default.
     """
     data = json.dumps({
         "maca": "Teste",
@@ -111,9 +124,9 @@ def test_post_task_additional_info():
 #------- GET ALL TASKS -------#
 def test_get_all():
     """
-    Teste:
+    Teste: Retorna todos os objetos no db.
     Verbo: GET
-    Saída esperada:
+    Esperado: Status Code 200 e todos os objetos no db também se encontram na lista "uuids".
     """
     response = client.get('/task')
     assert response.status_code == 200
@@ -127,7 +140,7 @@ def test_get_all():
 #------- GET UNKOWN TASK -------#
 def test_get_single_task_wrong_uuid():
     """
-    Teste: retorna uma task só, porém é passado um UUID aleatório
+    Teste: Retorna uma task só, porém é passado um UUID aleatório
     Verbo: GET
     Esperado: Status Code = 404
     """
@@ -138,7 +151,7 @@ def test_get_single_task_wrong_uuid():
 #------ PUT VALID TASK (REPLACE WHOLE TASK) ------#
 def test_put_with_valid_uuid():
     """
-    Teste: Substitui uma task inteira de id uuid
+    Teste: Substitui uma task inteira com uuid conhecido
     Verbo: PUT
     Esperado: Status Code = 200
     """
@@ -159,7 +172,7 @@ def test_put_with_valid_uuid():
 #------- PUT EM TASK INEXISTENTE -------#
 def test_put_with_invalid_uuid():
     """
-    Teste: Tentar substituir uma task de uuid inexistente
+    Teste: Substitui uma task inteira com uuid desconhecido
     Verbo: PUT
     Esperado: Status Code = 200
     """
@@ -181,8 +194,8 @@ def test_put_with_invalid_uuid():
 #----- PATCH VALID UUID ----------#
 def test_patch_with_valid_uuid():
     """
-    Teste: Atualiza as infos de uma task de id uuid
-    Verbo: PUT
+    Teste: Atualiza os dados de uma task de uuid conhecido.
+    Verbo: PATCH
     Esperado: Status Code = 200
     """
     url = "/task/" + str(uuids[1])
@@ -203,8 +216,8 @@ def test_patch_with_valid_uuid():
 #----- PATCH INVALID UUID ----------#
 def test_patch_unknown_task():
     """
-    Teste: retorna uma task só, porém é passado um UUID aleatório
-    Verbo: GET
+    Teste: Atualiza os dados de uma task com uuid aleatório.
+    Verbo: PATCH
     Esperado: Status Code = 404
     """
     url = "/task/" + str(uuid.uuid4())
@@ -222,10 +235,8 @@ def test_get_all_completed():
     """
     Teste: GET SOMENTE AS TASKS COMPLETAS
     Verbo: GET
-    Saída esperada: [{
-        description...,
-        completed: True
-    }]
+    Esperado: Que todos os objetos retornados na response tenham seus uuid's salvos na lista
+              "completed_tasks_uuids".
     """
     response = client.get('/task?completed=true')
     assert response.status_code == 200
@@ -239,18 +250,15 @@ def test_get_all_completed():
 #------- GET ALL INCOMPLETED TASKS -------#
 def test_get_all_incompleted():
     """
-    Teste: GET SOMENTE AS TASKS COMPLETAS
+    Teste: GET SOMENTE AS TASKS INCOMPLETAS
     Verbo: GET
-    Saída esperada: [{
-        description...,
-        completed: True
-    }]
+    Esperado: Que todos os objetos retornados na response tenham seus uuid's salvos na lista
+              "incompleted_tasks_uuids".
     """
     incompleted_tasks_uuids = uuids
     for i in completed_tasks_uuids:
         if i in incompleted_tasks_uuids:
             incompleted_tasks_uuids.remove(i)
-
 
     response = client.get('/task?completed=false')
     assert response.status_code == 200
