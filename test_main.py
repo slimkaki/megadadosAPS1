@@ -8,6 +8,8 @@ uuids = []
 completed_tasks_uuids = []
 incompleted_tasks_uuids = []
 
+
+
 #--------- GET ROOT ------------#
 def test_read_main_returns_not_found():
     """
@@ -267,5 +269,3 @@ def test_get_all_incompleted():
             assert True
         else:
             assert False
-
-
