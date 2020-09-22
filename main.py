@@ -68,8 +68,6 @@ async def read_tasks(completed: bool = None):
     response_model=uuid.UUID,
 )
 async def create_task(item: Task):
-    if(type(item) != Task):
-        raise HTTPException(status_code=422, detail="O Objeto não pode ser criado...")
     uuid_ = uuid.uuid4()
     tasks[uuid_] = item
     return uuid_
@@ -101,6 +99,7 @@ async def read_task(uuid_: uuid.UUID):
 async def replace_task(uuid_: uuid.UUID, item: Task):
     try:
         tasks[uuid_] = item
+        return uuid_
     except KeyError as exception:
         raise HTTPException(
             status_code=404,
