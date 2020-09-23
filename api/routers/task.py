@@ -1,8 +1,13 @@
-from .main import app
+from fastapi import APIRouter, Depends, HTTPException
+from typing import Dict
+import uuid
+from ..models import Task
+from ..database import get_db, DBSession
 
-@app.get(
-    '/task',
-    tags=['task'],
+router = APIRouter()
+
+@router.get(
+    '',
     summary='Reads task list',
     description='Reads the whole task list.',
     response_model=Dict[uuid.UUID, Task],
@@ -11,9 +16,8 @@ async def read_tasks(completed: bool = None, db: DBSession = Depends(get_db)):
     return db.read_tasks(completed)
 
 
-@app.post(
-    '/task',
-    tags=['task'],
+@router.post(
+    '',
     summary='Creates a new task',
     description='Creates a new task and returns its UUID.',
     response_model=uuid.UUID,
@@ -22,9 +26,8 @@ async def create_task(item: Task, db: DBSession = Depends(get_db)):
     return db.create_task(item)
 
 
-@app.get(
-    '/task/{uuid_}',
-    tags=['task'],
+@router.get(
+    '/{uuid_}',
     summary='Reads task',
     description='Reads task from UUID.',
     response_model=Task,
@@ -38,10 +41,8 @@ async def read_task(uuid_: uuid.UUID, db: DBSession = Depends(get_db)):
             detail='Task not found',
         ) from exception
 
-
-@app.put(
-    '/task/{uuid_}',
-    tags=['task'],
+@router.put(
+    '/{uuid_}',
     summary='Replaces a task',
     description='Replaces a task identified by its UUID.',
 )
@@ -54,10 +55,8 @@ async def replace_task(uuid_: uuid.UUID, item: Task, db: DBSession = Depends(get
             detail='Task not found',
         ) from exception
 
-
-@app.patch(
-    '/task/{uuid_}',
-    tags=['task'],
+@router.patch(
+    '/{uuid_}',
     summary='Alters task',
     description='Alters a task identified by its UUID',
 )
@@ -70,10 +69,8 @@ async def alter_task(uuid_: uuid.UUID, item: Task, db: DBSession = Depends(get_d
             detail='Task not found',
         ) from exception
 
-
-@app.delete(
-    '/task/{uuid_}',
-    tags=['task'],
+@router.delete(
+    '/{uuid_}',
     summary='Deletes task',
     description='Deletes a task identified by its UUID',
 )
