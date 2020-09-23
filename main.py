@@ -45,47 +45,33 @@ class DBSession:
     tasks = {}
     def __init__(self):
         self.tasks = DBSession.tasks
-
-    def getTasks(self, completed=None):
-        if completed == False:
-            incompletedTasks = {}
-            for i in self.tasks:
-                if (i.completed == False):
-                    incompletedTasks[i] = {
-                                            "description": i.description,
-                                            "completed": i.completed
-                                          }
-
-            return incompletedTasks
-        elif completed == True:
-            completedTasks = {}
-            for i in self.tasks:
-                if (i.completed == True):
-                    completedTasks[i] = {
-                                        "description": i.description,
-                                        "completed": i.completed
-                                        }
-            return completedTasks
-        else:
-            return self.tasks.copy()
     
-    def getSingleTask(self, uuid_):
-        return self.tasks[uuid_]
-
-    def postTask(self, item):
+    def read_tasks(self, completed):
+        if completed is None:
+            return self.tasks
+        return {
+            uuid_: item
+            for uuid_, item in self.tasks.items() if item.completed == completed
+            }
+    
+    def create_task(self, item):
         uuid_ = uuid.uuid4()
         self.tasks[uuid_] = item
         return uuid_
-
-    def putTask(self, uuid_, item):
-        self.tasks[uuid_] = item
     
-    def patchTask(self, uuid_, item):
+    def read_task(self, uuid_):
+        return self.tasks[uuid_]
+    
+    def replace_task(self, uuid_, item):
         self.tasks[uuid_] = item
 
-    def deleteTask(self, uuid_):
-        del self.tasks[uuid_]
+    def alter_task(self, uuid_, item):
+        update_data = item.dict(exclude_unset=True)
+        self.tasks[uuid_] = self.tasks[uuid_].copy(update=update_data)
 
+    def remove_task(self, uuid_):
+        del self.tasks[uuid_]
+    
 def get_db():
     return DBSession()
 
@@ -98,8 +84,7 @@ def get_db():
     response_model=Dict[uuid.UUID, Task],
 )
 async def read_tasks(completed: bool = None, db: DBSession = Depends(get_db)):
-    db.getTasks(completed)
-    
+    return db.read_tasks(completed)
 
 
 @app.post(
@@ -110,8 +95,7 @@ async def read_tasks(completed: bool = None, db: DBSession = Depends(get_db)):
     response_model=uuid.UUID,
 )
 async def create_task(item: Task, db: DBSession = Depends(get_db)):
-    myUuid = db.postTask(item)
-    return myUuid
+    return db.create_task(item)
 
 
 @app.get(
@@ -122,7 +106,13 @@ async def create_task(item: Task, db: DBSession = Depends(get_db)):
     response_model=Task,
 )
 async def read_task(uuid_: uuid.UUID, db: DBSession = Depends(get_db)):
-    return db.getSingleTask(uuid_)
+    try:
+        return db.read_task(uuid_)
+    except KeyError as exception:
+        raise HTTPException(
+            status_code=404,
+            detail='Task not found',
+        ) from exception
 
 
 @app.put(
@@ -133,7 +123,7 @@ async def read_task(uuid_: uuid.UUID, db: DBSession = Depends(get_db)):
 )
 async def replace_task(uuid_: uuid.UUID, item: Task, db: DBSession = Depends(get_db)):
     try:
-        db.putTask(uuid_, item)
+        db.replace_task(uuid_, item)
     except KeyError as exception:
         raise HTTPException(
             status_code=404,
@@ -149,7 +139,7 @@ async def replace_task(uuid_: uuid.UUID, item: Task, db: DBSession = Depends(get
 )
 async def alter_task(uuid_: uuid.UUID, item: Task, db: DBSession = Depends(get_db)):
     try:
-        db.patchTask(uuid_, item)
+        db.alter_task(uuid_, item)
     except KeyError as exception:
         raise HTTPException(
             status_code=404,
@@ -165,7 +155,7 @@ async def alter_task(uuid_: uuid.UUID, item: Task, db: DBSession = Depends(get_d
 )
 async def remove_task(uuid_: uuid.UUID, db: DBSession = Depends(get_db)):
     try:
-        db.deleteTask(uuid_)
+        db.remove_task(uuid_)
     except KeyError as exception:
         raise HTTPException(
             status_code=404,
