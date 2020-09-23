@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
-from main import app
+from .main import app
 import json, uuid
+from .models import Task
 
 client = TestClient(app)
 
