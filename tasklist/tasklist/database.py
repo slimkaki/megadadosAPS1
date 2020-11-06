@@ -16,32 +16,36 @@ class DBSession:
     def __init__(self, connection: conn.MySQLConnection):
         self.connection = connection
 
-    def read_tasks(self, completed: bool = None):
-        query = 'SELECT BIN_TO_UUID(uuid), description, completed FROM tasks'
+    def read_tasks(self, username, completed: bool = None):
+        owner_id = self.get_id_by_username(username)
+        query = 'SELECT BIN_TO_UUID(id_task), description, completed FROM tasks'
         if completed is not None:
-            query += ' WHERE completed = '
+            query += ' WHERE id_user=UUID_TO_BIN(%s) AND completed = '
             if completed:
                 query += 'True'
             else:
                 query += 'False'
+        else:
+            query += ' WHERE id_user=UUID_TO_BIN(%s)'
+        
 
         with self.connection.cursor() as cursor:
-            cursor.execute(query)
+            cursor.execute(query, (str(owner_id),))
             db_results = cursor.fetchall()
 
         return {
             uuid_: Task(
                 description=field_description,
-                completed=bool(field_completed),
+                completed=bool(field_completed)
             )
             for uuid_, field_description, field_completed in db_results
         }
 
-    def create_task(self, item: Task, username):
+    def create_task(self, username, item: Task):
         uuid_ = uuid.uuid4()
-
+        if not self.__user_exists_by_username(username):
+            raise KeyError()
         user_id = self.get_id_by_username(username)
-
         with self.connection.cursor() as cursor:
             cursor.execute(
                 'INSERT INTO tasks VALUES (UUID_TO_BIN(%s), %s, %s, UUID_TO_BIN(%s))',
@@ -51,51 +55,56 @@ class DBSession:
 
         return uuid_
 
-    def read_task(self, uuid_: uuid.UUID):
+    def read_task(self, uuid_: uuid.UUID, username: str):
         if not self.__task_exists(uuid_):
             raise KeyError()
+        if not self.__user_exists_by_username(username):
+            raise KeyError()
+        id_user = self.get_id_by_username(username)
 
         with self.connection.cursor() as cursor:
             cursor.execute(
                 '''
                 SELECT description, completed
                 FROM tasks
-                WHERE id_tasks = UUID_TO_BIN(%s)
+                WHERE id_task = UUID_TO_BIN(%s) AND id_user = UUID_TO_BIN(%s)
                 ''',
-                (str(uuid_), ),
+                (str(uuid_), str(id_user)),
             )
             result = cursor.fetchone()
 
         return Task(description=result[0], completed=bool(result[1]))
 
-    def replace_task(self, uuid_, item):
+    def replace_task(self, username, uuid_, item):
         if not self.__task_exists(uuid_):
             raise KeyError()
-
+        id_user = self.get_id_by_username(username)
         with self.connection.cursor() as cursor:
             cursor.execute(
                 '''
                 UPDATE tasks SET description=%s, completed=%s
-                WHERE uuid=UUID_TO_BIN(%s)
+                WHERE id_task=UUID_TO_BIN(%s) AND id_user=UUID_TO_BIN(%s)
                 ''',
-                (item.description, item.completed, str(uuid_)),
+                (item.description, item.completed, str(uuid_), str(id_user)),
             )
         self.connection.commit()
 
-    def remove_task(self, uuid_):
+    def remove_task(self, uuid_, username):
+        id_user = self.get_id_by_username(username)
         if not self.__task_exists(uuid_):
             raise KeyError()
 
         with self.connection.cursor() as cursor:
             cursor.execute(
-                'DELETE FROM tasks WHERE uuid=UUID_TO_BIN(%s)',
-                (str(uuid_), ),
+                'DELETE FROM tasks WHERE id_task=UUID_TO_BIN(%s) AND id_user=UUID_TO_BIN(%s)',
+                (str(uuid_), str(id_user)),
             )
         self.connection.commit()
 
-    def remove_all_tasks(self):
+    def remove_all_tasks(self, username):
+        id_user = self.get_id_by_username(username)
         with self.connection.cursor() as cursor:
-            cursor.execute('DELETE FROM tasks')
+            cursor.execute('DELETE FROM tasks WHERE id_user = UUID_TO_BIN(%s)', (str(id_user), ), )
         self.connection.commit()
 
     def __task_exists(self, uuid_: uuid.UUID):
@@ -103,7 +112,7 @@ class DBSession:
             cursor.execute(
                 '''
                 SELECT EXISTS(
-                    SELECT 1 FROM tasks WHERE uuid=UUID_TO_BIN(%s)
+                    SELECT 1 FROM tasks WHERE id_task=UUID_TO_BIN(%s)
                 )
                 ''',
                 (str(uuid_), ),
@@ -125,13 +134,28 @@ class DBSession:
         self.connection.commit()
 
         return uuid_
+
+    def __user_exists_by_username(self, username: str):
+        with self.connection.cursor() as cursor:
+            cursor.execute(
+                '''
+                SELECT EXISTS(
+                    SELECT 1 FROM users WHERE username=%s
+                )
+                ''',
+                (username, ),
+            )
+            results = cursor.fetchone()
+            found = bool(results[0])
+
+        return found
     
     def __user_exists(self, uuid_: uuid.UUID):
         with self.connection.cursor() as cursor:
             cursor.execute(
                 '''
                 SELECT EXISTS(
-                    SELECT 1 FROM users WHERE uuid=UUID_TO_BIN(%s)
+                    SELECT 1 FROM users WHERE id_user=UUID_TO_BIN(%s)
                 )
                 ''',
                 (str(uuid_), ),
@@ -147,40 +171,42 @@ class DBSession:
 
         with self.connection.cursor() as cursor:
             cursor.execute(
-                'DELETE FROM users WHERE uuid=UUID_TO_BIN(%s)',
-                (str(uuid_)),
+                'DELETE FROM users WHERE id_user=UUID_TO_BIN(%s)',
+                (str(uuid_),)
             )
         self.connection.commit()
 
-    def update_user(self, uuid_, username):
+    def update_user(self, uuid_, new_username):
         if not self.__user_exists(uuid_):
             raise KeyError()
 
         with self.connection.cursor() as cursor:
             cursor.execute(
                 '''
-                UPDATE users SET name=%s
-                WHERE uuid=UUID_TO_BIN(%s)
+                UPDATE users SET username=%s
+                WHERE id_user=UUID_TO_BIN(%s)
                 ''',
-                (username, str(uuid_)),
+                (new_username, str(uuid_)),
             )
         self.connection.commit()
     
     def get_id_by_username(self, username):
+        if not self.__user_exists_by_username(username):
+            raise KeyError()
         with self.connection.cursor() as cursor:
             cursor.execute(
                 '''
-                SELECT id_user
+                SELECT BIN_TO_UUID(id_user)
                 FROM users
                 WHERE username=%s
                 ''',
-                (username),
+                (username,)
             )
             user_id = cursor.fetchone()
-            return user_id
+            return user_id[0]
 
     def read_users(self):
-        query = 'SELECT BIN_TO_UUID(uuid), username FROM users'
+        query = 'SELECT BIN_TO_UUID(id_user), username FROM users'
 
         with self.connection.cursor() as cursor:
             cursor.execute(query)

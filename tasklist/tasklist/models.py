@@ -1,5 +1,6 @@
 # pylint: disable=missing-module-docstring,missing-class-docstring
 from typing import Optional
+import uuid
 
 from pydantic import BaseModel, Field  # pylint: disable=no-name-in-module
 
@@ -23,3 +24,4 @@ class Task(BaseModel):
                 'completed': False,
             }
         }
+

@@ -16,4 +16,4 @@ app = FastAPI(
     openapi_tags=tags_metadata,
 )
 
-app.include_router(task.router, prefix='/task', tags=['task'])
+app.include_router(task.router, prefix="/api", tags=['task'])
