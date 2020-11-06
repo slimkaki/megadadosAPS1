@@ -17,4 +17,4 @@ app = FastAPI(
     description='Task-list project for the **Megadados** course',
     openapi_tags=tags_metadata,
 )
-app.include_router(router, prefix="/task", tags=["task"])
+app.include_router(router, tags=["task"])

@@ -11,6 +11,8 @@ from ..models import Task
 router = APIRouter()
 
 
+# FOR TASKS
+
 @router.get(
     '',
     summary='Reads task list',
@@ -110,3 +112,37 @@ async def remove_task(uuid_: uuid.UUID, db: DBSession = Depends(get_db)):
 )
 async def remove_all_tasks(db: DBSession = Depends(get_db)):
     db.remove_all_tasks()
+
+# FOR USERS
+
+@router.post(
+    '/users',
+    summary='Creates a new user',
+    description='Creates a new user and returns its UUID.',
+    response_model=uuid.UUID,
+)
+async def create_user(username, db: DBSession = Depends(get_db)):
+    return db.create_user(username)
+
+@router.get(
+    '/users',
+    summary='Reads users list',
+    description='Reads the whole users list.',
+    response_model=Dict[uuid.UUID, str],
+)
+async def read_users(db: DBSession = Depends(get_db)):
+    return db.read_users()
+
+@router.get(
+    '/users/{username}',
+    summary='Get user',
+    description='Get username by UUID.',
+)
+async def read_user(username: str, db: DBSession = Depends(get_db)):
+    try:
+        return db.get_id_by_username(username)
+    except KeyError as exception:
+        raise HTTPException(
+            status_code=404,
+            detail='User not found',
+        ) from exception
